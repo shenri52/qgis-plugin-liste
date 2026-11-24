@@ -25,6 +25,7 @@ La fenêtre d’export s’affiche dans une présentation compacte. Les options 
 
 ### Historique des versions
 
+- **1.2.3** – Les zones de texte du CSS et des modèles HTML peuvent être agrandies indépendamment en déplaçant les séparateurs.
 - **1.2.2** – Les champs CSS, modèle de page et modèle de ligne des options avancées sont préremplis avec les paramètres HTML par défaut actuellement utilisés.
 - **1.2.1** – Suppression du changelog bilingue dupliqué dans les métadonnées ; ajout des coordonnées et liens du projet ; documentation mise à jour.
 - **1.2.0** – Fenêtre compacte avec icône et titre ; barre de progression ; détection des descriptions localisées dans une langue incorrecte ; correction de l’affichage des options avancées.
@@ -54,6 +55,7 @@ The export dialog opens in a compact layout. Advanced options let users customiz
 
 ### Version history
 
+- **1.2.3** – CSS and HTML template text areas can be resized independently by dragging the splitters.
 - **1.2.2** – Advanced CSS, page template and row template fields are prefilled with the currently active HTML defaults.
 - **1.2.1** – Remove duplicated bilingual changelog text from metadata; add project links and author details; update documentation.
 - **1.2.0** – Compact dialog with icon and title; progress indicator; detection of localized descriptions written in the wrong language; advanced options visibility fix.

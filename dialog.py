@@ -4,12 +4,12 @@ import json
 import os
 from urllib.parse import quote, urlencode
 
-from qgis.PyQt.QtCore import QLocale, QUrl
+from qgis.PyQt.QtCore import QLocale, QUrl, Qt
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import (
     QComboBox, QDialog, QFileDialog, QFormLayout, QHBoxLayout, QLabel,
     QLineEdit, QMessageBox, QPushButton, QPlainTextEdit, QVBoxLayout,
-    QProgressBar, QApplication,
+    QProgressBar, QApplication, QSplitter, QWidget,
 )
 from qgis.PyQt.QtNetwork import QNetworkRequest
 from qgis.core import (
@@ -153,14 +153,36 @@ class ExportDialog(QDialog):
         for label, widget in [
             (self.tr("Code langue personnalisé"), self.custom_language),
             (self.tr("Séparateur CSV (un caractère ou \\t)"), self.separator),
-            (self.tr("CSS personnalisé"), self.css),
-            (self.tr("Modèle de page"), self.page_template),
-            (self.tr("Modèle de ligne"), self.row_template),
         ]:
             label_widget = QLabel(label)
             self.advanced.addWidget(label_widget)
             self.advanced.addWidget(widget)
             self.advanced_widgets.extend([label_widget, widget])
+
+        # Les trois zones HTML sont placées dans un séparateur vertical :
+        # l'utilisateur peut déplacer les poignées entre les zones pour
+        # agrandir celle qu'il souhaite modifier.
+        self.html_editors_splitter = QSplitter(Qt.Vertical)
+        self.html_editors_splitter.setChildrenCollapsible(False)
+        for label, editor in [
+            (self.tr("CSS personnalisé"), self.css),
+            (self.tr("Modèle de page HTML"), self.page_template),
+            (self.tr("Modèle de ligne HTML"), self.row_template),
+        ]:
+            editor_group = QWidget()
+            editor_layout = QVBoxLayout(editor_group)
+            editor_layout.setContentsMargins(0, 2, 0, 2)
+            editor_layout.setSpacing(3)
+            label_widget = QLabel(label)
+            editor_layout.addWidget(label_widget)
+            editor.setMinimumHeight(85)
+            editor.setLineWrapMode(QPlainTextEdit.NoWrap)
+            editor_layout.addWidget(editor, 1)
+            self.html_editors_splitter.addWidget(editor_group)
+            self.advanced_widgets.append(editor_group)
+        self.html_editors_splitter.setSizes([130, 180, 130])
+        self.advanced.addWidget(self.html_editors_splitter, 1)
+        self.advanced_widgets.append(self.html_editors_splitter)
         layout.addLayout(self.advanced)
         self._toggle_advanced(False)
 

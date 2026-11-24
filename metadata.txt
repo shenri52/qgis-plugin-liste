@@ -7,7 +7,7 @@ description=Exports the list of installed QGIS plugins as HTML or CSV, with desc
 description[fr]=Exporte la liste des extensions QGIS installées en HTML ou CSV, avec les descriptions dans la langue choisie.
 about=Standalone QGIS plugin to export the installed plugins list as HTML or CSV. It uses plugin-provided localized descriptions when available and otherwise attempts automatic translation. The export dialog is available from the Extensions menu and the toolbar.
 about[fr]=Extension QGIS autonome permettant d’exporter la liste des extensions installées en HTML ou CSV. Elle utilise les descriptions traduites fournies par les extensions et, à défaut, tente une traduction automatique. La fenêtre d’export est accessible depuis le menu Extensions et la barre d’outils.
-version=1.2.2
+version=1.2.3
 author=shenri52
 email=shenri.hmn@gmail.com
 tracker=https://github.com/shenri52/qgis-plugin-liste/issues
@@ -17,6 +17,6 @@ tags=plugins, export, html, csv, translation
 icon=icon.png
 experimental=False
 deprecated=False
-changelog=1.2.2 - Advanced HTML settings are prefilled with the active default CSS, page template and row template, making the current output easy to customize. / Les options HTML avancées sont préremplies avec le CSS, le modèle de page et le modèle de ligne actuellement utilisés afin de faciliter leur personnalisation.
+changelog=1.2.3 - Advanced HTML text editors can be resized independently using draggable splitters. / Les zones de texte HTML des options avancées peuvent être redimensionnées indépendamment grâce à des séparateurs déplaçables.
     1.2.0 - Compact dialog with application icon and title; progress indicator during plugin scanning, description translation and export; detect and correct wrongly localized descriptions; fix advanced options layout visibility.
     1.1.0 - Standalone Extensions menu and toolbar action; dialog help follows the system language; CSV save dialog uses the matching extension; more resilient automatic translation with per-plugin fallback.
