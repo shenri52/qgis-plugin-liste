@@ -66,3 +66,10 @@ GPL-2.0. See [LICENSE](LICENSE).
 
 - Source code: https://github.com/shenri52/qgis-plugin-liste
 - Issue tracker: https://github.com/shenri52/qgis-plugin-liste/issues
+
+
+## Historique / Version history
+
+- **1.2.2** – Les champs CSS, modèle de page et modèle de ligne des options avancées sont préremplis avec les paramètres HTML par défaut actuellement utilisés. / Advanced CSS, page template and row template fields are prefilled with the currently active HTML defaults.
+- **1.2.1** – Correction de l'affichage du changelog et métadonnées de publication complétées. / Changelog display fix and publication metadata completed.
+- **1.2.0** – Fenêtre compacte, progression de l'export et contrôle de langue des descriptions. / Compact dialog, export progress and description language checking.

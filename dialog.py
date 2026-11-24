@@ -141,10 +141,15 @@ class ExportDialog(QDialog):
         self.separator.setMaxLength(2)
         self.css = QPlainTextEdit()
         self.css.setPlaceholderText(self.tr("CSS personnalisé (HTML uniquement)"))
+        # Préremplir les champs avec les paramètres réellement utilisés par
+        # l'export HTML lorsque l'utilisateur ne fournit aucune personnalisation.
+        self.css.setPlainText(core.DEFAULT_CSS)
         self.page_template = QPlainTextEdit()
         self.page_template.setPlaceholderText(self.tr("Modèle de page HTML (balises : {lang} {titre} {css} {entete_nom} {entete_description} {lignes})"))
+        self.page_template.setPlainText(core.DEFAULT_PAGE)
         self.row_template = QPlainTextEdit()
         self.row_template.setPlaceholderText(self.tr("Modèle de ligne HTML (balises : {nom} {description} {version} {auteur} {dossier} {homepage})"))
+        self.row_template.setPlainText(core.DEFAULT_ROW)
         for label, widget in [
             (self.tr("Code langue personnalisé"), self.custom_language),
             (self.tr("Séparateur CSV (un caractère ou \\t)"), self.separator),
