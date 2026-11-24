@@ -9,6 +9,7 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import (
     QComboBox, QDialog, QFileDialog, QFormLayout, QHBoxLayout, QLabel,
     QLineEdit, QMessageBox, QPushButton, QPlainTextEdit, QVBoxLayout,
+    QProgressBar, QApplication,
 )
 from qgis.PyQt.QtNetwork import QNetworkRequest
 from qgis.core import (
@@ -24,22 +25,31 @@ class _Translator:
 
     def __init__(self):
         self.cache = {}
+        self.last_source_language = None
 
     def __call__(self, text, lang):
         key = (text, lang)
         if key in self.cache:
-            return self.cache[key]
+            result, source = self.cache[key]
+            self.last_source_language = source
+            return result
         parts = []
+        detected_sources = []
         for chunk in core.split_text(text):
             translated = self._request(chunk, lang)
             if not translated:
                 return None
             parts.append(translated)
+            if self.last_source_language:
+                detected_sources.append(self.last_source_language)
         result = " ".join(parts).strip() or None
-        self.cache[key] = result
+        source = detected_sources[0] if detected_sources else None
+        self.last_source_language = source
+        self.cache[key] = (result, source)
         return result
 
     def _request(self, text, lang):
+        self.last_source_language = None
         params = {"client": "gtx", "sl": "auto", "tl": lang, "dt": "t", "q": text}
         url = f"{self.URL}?{urlencode(params, quote_via=quote)}"
         request = QNetworkRequest(QUrl(url))
@@ -52,6 +62,7 @@ class _Translator:
                 try:
                     data = json.loads(bytes(blocking.reply().content()).decode("utf-8"))
                     result = "".join(seg[0] for seg in data[0] if seg and seg[0]).strip()
+                    self.last_source_language = data[2] if len(data) > 2 else None
                     if result:
                         return result
                 except Exception:  # noqa: BLE001
@@ -64,12 +75,26 @@ class ExportDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(self.tr("Liste des plugins installés"))
         self.setWindowIcon(QIcon(os.path.join(os.path.dirname(__file__), "icon.png")))
-        self.setMinimumWidth(560)
+        self.setMinimumWidth(650)
+        self.setMaximumWidth(760)
         self._build_ui()
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(8)
         is_french = QLocale.system().name().lower().startswith("fr")
+
+        # Compact application header: plugin icon and application name.
+        header = QHBoxLayout()
+        logo = QLabel()
+        logo.setPixmap(QIcon(os.path.join(os.path.dirname(__file__), "icon.png")).pixmap(32, 32))
+        header.addWidget(logo)
+        app_name = QLabel(self.tr("Liste des plugins installés"))
+        app_name.setStyleSheet("font-size: 15px; font-weight: 600;")
+        header.addWidget(app_name)
+        header.addStretch(1)
+        layout.addLayout(header)
         help_text = ("Exporte la liste des extensions QGIS installées en HTML ou CSV. "
                      "Les descriptions sont utilisées dans la langue choisie lorsqu’elles existent, "
                      "sinon elles sont traduites automatiquement." if is_french else
@@ -109,6 +134,7 @@ class ExportDialog(QDialog):
         layout.addWidget(self.advanced_toggle)
 
         self.advanced = QVBoxLayout()
+        self.advanced_widgets = []
         self.custom_language = QLineEdit()
         self.custom_language.setPlaceholderText("fr, sv, pt-BR…")
         self.separator = QLineEdit(";")
@@ -126,10 +152,22 @@ class ExportDialog(QDialog):
             (self.tr("Modèle de page"), self.page_template),
             (self.tr("Modèle de ligne"), self.row_template),
         ]:
-            self.advanced.addWidget(QLabel(label))
+            label_widget = QLabel(label)
+            self.advanced.addWidget(label_widget)
             self.advanced.addWidget(widget)
+            self.advanced_widgets.extend([label_widget, widget])
         layout.addLayout(self.advanced)
         self._toggle_advanced(False)
+
+        self.progress_label = QLabel()
+        self.progress_label.setVisible(False)
+        layout.addWidget(self.progress_label)
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setTextVisible(True)
+        self.progress_bar.setVisible(False)
+        layout.addWidget(self.progress_bar)
 
         buttons = QHBoxLayout()
         buttons.addStretch(1)
@@ -143,10 +181,8 @@ class ExportDialog(QDialog):
 
     def _toggle_advanced(self, checked):
         self.advanced_toggle.setText(self.tr("Options avancées ▾") if checked else self.tr("Options avancées ▸"))
-        for i in range(self.advanced.count()):
-            item = self.advanced.itemAt(i)
-            if item and item.widget():
-                item.widget().setVisible(checked)
+        for widget in self.advanced_widgets:
+            widget.setVisible(checked)
 
     def _suffix(self):
         return ".csv" if self.format_combo.currentIndex() == 1 else ".html"
@@ -208,12 +244,36 @@ class ExportDialog(QDialog):
         if not os.path.isdir(plugins_dir):
             QMessageBox.critical(self, self.windowTitle(), self.tr("Dossier des plugins introuvable : ") + plugins_dir)
             return
-        plugins, warnings = core.collect_plugins(plugins_dir)
-        translator = _Translator() if lang else None
-        labels = core.build_labels(lang, translator)
         self.export_button.setEnabled(False)
+        self.progress_bar.setVisible(True)
+        self.progress_label.setVisible(True)
+        self.progress_bar.setRange(0, 0)
+        self.progress_label.setText(self.tr("Lecture des extensions installées…"))
+        QApplication.processEvents()
         try:
-            stats = core.resolve_descriptions(plugins, lang, translator, labels)
+            plugins, warnings = core.collect_plugins(plugins_dir)
+            translator = _Translator() if lang else None
+            labels = core.build_labels(lang, translator)
+            self.progress_bar.setRange(0, max(1, len(plugins)))
+            self.progress_bar.setValue(0)
+            self.progress_label.setText(self.tr("Analyse et traduction des descriptions…"))
+            QApplication.processEvents()
+
+            def update_progress(current, total):
+                self.progress_bar.setRange(0, max(1, total))
+                self.progress_bar.setValue(current)
+                self.progress_label.setText(
+                    self.tr("Traitement des extensions : {current}/{total}").format(
+                        current=current, total=total
+                    )
+                )
+                QApplication.processEvents()
+
+            stats = core.resolve_descriptions(
+                plugins, lang, translator, labels, on_progress=update_progress
+            )
+            self.progress_label.setText(self.tr("Création du fichier d’export…"))
+            QApplication.processEvents()
             os.makedirs(os.path.dirname(os.path.abspath(output)), exist_ok=True)
             if suffix == ".csv":
                 content = core.render_csv(plugins, labels, sep)
@@ -230,6 +290,8 @@ class ExportDialog(QDialog):
             return
         finally:
             self.export_button.setEnabled(True)
+            self.progress_bar.setVisible(False)
+            self.progress_label.setVisible(False)
 
         message = self.tr("Export terminé : {n} plugin(s).\nFichier : {path}\nDescriptions : {native} natives, {translated} traduites, {failed} non traduites.").format(
             n=len(plugins), path=output, native=stats["natif"], translated=stats["traduit"], failed=stats["echec"])

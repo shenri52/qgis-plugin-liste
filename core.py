@@ -247,6 +247,17 @@ def resolve_descriptions(plugins, lang, translate_fn=None, labels=None,
             native = _lookup_localized(p["localized"], lang)
             if native:
                 text, how = native, "natif"
+                # A localized metadata field can itself contain text in the wrong
+                # language. Ask the translator to detect its source language and
+                # repair it only when it clearly differs from the requested one.
+                if translate_fn and _base(lang) != "en":
+                    try:
+                        checked = translate_fn(native, lang)
+                        detected = getattr(translate_fn, "last_source_language", None)
+                        if checked and detected and _base(detected) != _base(lang):
+                            text, how = checked, "traduit"
+                    except Exception:  # noqa: BLE001
+                        pass
             elif default and _base(lang) != "en" and translate_fn:
                 try:
                     translated = translate_fn(default, lang)
