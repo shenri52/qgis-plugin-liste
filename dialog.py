@@ -9,7 +9,7 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import (
     QComboBox, QDialog, QFileDialog, QFormLayout, QHBoxLayout, QLabel,
     QLineEdit, QMessageBox, QPushButton, QPlainTextEdit, QVBoxLayout,
-    QProgressBar, QApplication, QSplitter, QWidget,
+    QProgressBar, QApplication, QSplitter, QWidget, QSizePolicy,
 )
 from qgis.PyQt.QtNetwork import QNetworkRequest
 from qgis.core import (
@@ -76,7 +76,7 @@ class ExportDialog(QDialog):
         self.setWindowTitle(self.tr("Liste des plugins installés"))
         self.setWindowIcon(QIcon(os.path.join(os.path.dirname(__file__), "icon.png")))
         self.setMinimumWidth(650)
-        self.setMaximumWidth(760)
+        self.setMaximumWidth(900)
         self._build_ui()
 
     def _build_ui(self):
@@ -164,6 +164,14 @@ class ExportDialog(QDialog):
         # agrandir celle qu'il souhaite modifier.
         self.html_editors_splitter = QSplitter(Qt.Vertical)
         self.html_editors_splitter.setChildrenCollapsible(False)
+        self.html_editors_splitter.setHandleWidth(10)
+        self.html_editors_splitter.setMinimumHeight(390)
+        self.html_editors_splitter.setStyleSheet(
+            "QSplitter::handle:vertical { background: #9aa8b5; "
+            "height: 10px; border-top: 1px solid #687887; "
+            "border-bottom: 1px solid #687887; }"
+            "QSplitter::handle:vertical:hover { background: #4a90c2; }"
+        )
         for label, editor in [
             (self.tr("CSS personnalisé"), self.css),
             (self.tr("Modèle de page HTML"), self.page_template),
@@ -175,12 +183,17 @@ class ExportDialog(QDialog):
             editor_layout.setSpacing(3)
             label_widget = QLabel(label)
             editor_layout.addWidget(label_widget)
-            editor.setMinimumHeight(85)
+            editor.setMinimumHeight(55)
             editor.setLineWrapMode(QPlainTextEdit.NoWrap)
+            editor.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
             editor_layout.addWidget(editor, 1)
+            editor_group.setMinimumHeight(80)
             self.html_editors_splitter.addWidget(editor_group)
             self.advanced_widgets.append(editor_group)
-        self.html_editors_splitter.setSizes([130, 180, 130])
+        self.html_editors_splitter.setStretchFactor(0, 1)
+        self.html_editors_splitter.setStretchFactor(1, 2)
+        self.html_editors_splitter.setStretchFactor(2, 1)
+        self.html_editors_splitter.setSizes([150, 210, 150])
         self.advanced.addWidget(self.html_editors_splitter, 1)
         self.advanced_widgets.append(self.html_editors_splitter)
         layout.addLayout(self.advanced)
@@ -210,6 +223,11 @@ class ExportDialog(QDialog):
         self.advanced_toggle.setText(self.tr("Options avancées ▾") if checked else self.tr("Options avancées ▸"))
         for widget in self.advanced_widgets:
             widget.setVisible(checked)
+        if checked:
+            # Give the splitter real vertical room; otherwise Qt may keep the
+            # dialog at its compact height and leave no usable area to drag.
+            self.resize(self.width(), max(self.height(), 760))
+            self.html_editors_splitter.setSizes([170, 240, 170])
 
     def _suffix(self):
         return ".csv" if self.format_combo.currentIndex() == 1 else ".html"
