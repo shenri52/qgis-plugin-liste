@@ -1,0 +1,238 @@
+# -*- coding: utf-8 -*-
+"""Fenêtre principale de Liste Plugin (menu Extensions et barre d'outils)."""
+import json
+import os
+from urllib.parse import quote, urlencode
+
+from qgis.PyQt.QtCore import QLocale, QUrl
+from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtWidgets import (
+    QComboBox, QDialog, QFileDialog, QFormLayout, QHBoxLayout, QLabel,
+    QLineEdit, QMessageBox, QPushButton, QPlainTextEdit, QVBoxLayout,
+)
+from qgis.PyQt.QtNetwork import QNetworkRequest
+from qgis.core import (
+    QgsApplication, QgsBlockingNetworkRequest,
+)
+
+from . import core
+
+
+class _Translator:
+    """Traduction via le réseau QGIS, avec échecs isolés par description."""
+    URL = "https://translate.googleapis.com/translate_a/single"
+
+    def __init__(self):
+        self.cache = {}
+
+    def __call__(self, text, lang):
+        key = (text, lang)
+        if key in self.cache:
+            return self.cache[key]
+        parts = []
+        for chunk in core.split_text(text):
+            translated = self._request(chunk, lang)
+            if not translated:
+                return None
+            parts.append(translated)
+        result = " ".join(parts).strip() or None
+        self.cache[key] = result
+        return result
+
+    def _request(self, text, lang):
+        params = {"client": "gtx", "sl": "auto", "tl": lang, "dt": "t", "q": text}
+        url = f"{self.URL}?{urlencode(params, quote_via=quote)}"
+        request = QNetworkRequest(QUrl(url))
+        request.setHeader(QNetworkRequest.KnownHeaders.UserAgentHeader, "Mozilla/5.0 (QGIS)")
+        # Deux tentatives : une panne ponctuelle ne condamne pas la description.
+        for _ in range(2):
+            blocking = QgsBlockingNetworkRequest()
+            error = blocking.get(request, False)
+            if error == getattr(getattr(QgsBlockingNetworkRequest, "ErrorCode", QgsBlockingNetworkRequest), "NoError"):
+                try:
+                    data = json.loads(bytes(blocking.reply().content()).decode("utf-8"))
+                    result = "".join(seg[0] for seg in data[0] if seg and seg[0]).strip()
+                    if result:
+                        return result
+                except Exception:  # noqa: BLE001
+                    pass
+        return None
+
+
+class ExportDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(self.tr("Liste des plugins installés"))
+        self.setWindowIcon(QIcon(os.path.join(os.path.dirname(__file__), "icon.png")))
+        self.setMinimumWidth(560)
+        self._build_ui()
+
+    def _build_ui(self):
+        layout = QVBoxLayout(self)
+        is_french = QLocale.system().name().lower().startswith("fr")
+        help_text = ("Exporte la liste des extensions QGIS installées en HTML ou CSV. "
+                     "Les descriptions sont utilisées dans la langue choisie lorsqu’elles existent, "
+                     "sinon elles sont traduites automatiquement." if is_french else
+                     "Exports the list of installed QGIS plugins as HTML or CSV. "
+                     "Descriptions use the selected language when available and are otherwise "
+                     "translated automatically.")
+        help_label = QLabel(help_text)
+        help_label.setWordWrap(True)
+        layout.addWidget(help_label)
+        form = QFormLayout()
+
+        self.format_combo = QComboBox()
+        self.format_combo.addItems(["HTML", "CSV"])
+        self.format_combo.currentIndexChanged.connect(self._format_changed)
+        form.addRow(self.tr("Format d'export"), self.format_combo)
+
+        self.language_combo = QComboBox()
+        for code, label in core.LANGUES:
+            self.language_combo.addItem(label, code)
+        default = 1 if QLocale.system().name().lower().startswith("fr") else 2
+        self.language_combo.setCurrentIndex(default)
+        form.addRow(self.tr("Langue des descriptions"), self.language_combo)
+
+        output_row = QHBoxLayout()
+        self.output_edit = QLineEdit()
+        self.output_edit.setPlaceholderText(self.tr("Choisir le fichier de destination…"))
+        self.browse_button = QPushButton(self.tr("Parcourir…"))
+        self.browse_button.clicked.connect(self._browse)
+        output_row.addWidget(self.output_edit, 1)
+        output_row.addWidget(self.browse_button)
+        form.addRow(self.tr("Fichier de sortie"), output_row)
+        layout.addLayout(form)
+
+        self.advanced_toggle = QPushButton(self.tr("Options avancées ▸"))
+        self.advanced_toggle.setCheckable(True)
+        self.advanced_toggle.toggled.connect(self._toggle_advanced)
+        layout.addWidget(self.advanced_toggle)
+
+        self.advanced = QVBoxLayout()
+        self.custom_language = QLineEdit()
+        self.custom_language.setPlaceholderText("fr, sv, pt-BR…")
+        self.separator = QLineEdit(";")
+        self.separator.setMaxLength(2)
+        self.css = QPlainTextEdit()
+        self.css.setPlaceholderText(self.tr("CSS personnalisé (HTML uniquement)"))
+        self.page_template = QPlainTextEdit()
+        self.page_template.setPlaceholderText(self.tr("Modèle de page HTML (balises : {lang} {titre} {css} {entete_nom} {entete_description} {lignes})"))
+        self.row_template = QPlainTextEdit()
+        self.row_template.setPlaceholderText(self.tr("Modèle de ligne HTML (balises : {nom} {description} {version} {auteur} {dossier} {homepage})"))
+        for label, widget in [
+            (self.tr("Code langue personnalisé"), self.custom_language),
+            (self.tr("Séparateur CSV (un caractère ou \\t)"), self.separator),
+            (self.tr("CSS personnalisé"), self.css),
+            (self.tr("Modèle de page"), self.page_template),
+            (self.tr("Modèle de ligne"), self.row_template),
+        ]:
+            self.advanced.addWidget(QLabel(label))
+            self.advanced.addWidget(widget)
+        layout.addLayout(self.advanced)
+        self._toggle_advanced(False)
+
+        buttons = QHBoxLayout()
+        buttons.addStretch(1)
+        self.export_button = QPushButton(self.tr("Exporter"))
+        self.export_button.clicked.connect(self._export)
+        close_button = QPushButton(self.tr("Fermer"))
+        close_button.clicked.connect(self.reject)
+        buttons.addWidget(self.export_button)
+        buttons.addWidget(close_button)
+        layout.addLayout(buttons)
+
+    def _toggle_advanced(self, checked):
+        self.advanced_toggle.setText(self.tr("Options avancées ▾") if checked else self.tr("Options avancées ▸"))
+        for i in range(self.advanced.count()):
+            item = self.advanced.itemAt(i)
+            if item and item.widget():
+                item.widget().setVisible(checked)
+
+    def _suffix(self):
+        return ".csv" if self.format_combo.currentIndex() == 1 else ".html"
+
+    def _format_changed(self, _index):
+        path = self.output_edit.text().strip()
+        if path:
+            root, ext = os.path.splitext(path)
+            if ext.lower() in (".csv", ".html", ".htm"):
+                self.output_edit.setText(root + self._suffix())
+
+    def _browse(self):
+        suffix = self._suffix()
+        current = self.output_edit.text().strip()
+        if not current:
+            current = os.path.join(QgsApplication.qgisSettingsDirPath(), "plugins_installes" + suffix)
+        filters = self.tr("Fichiers CSV (*.csv);;Tous les fichiers (*)") if suffix == ".csv" else self.tr("Fichiers HTML (*.html *.htm);;Tous les fichiers (*)")
+        path, selected_filter = QFileDialog.getSaveFileName(self, self.tr("Enregistrer la liste des plugins"), current, filters)
+        if path:
+            root, ext = os.path.splitext(path)
+            # L'extension est toujours cohérente avec le format sélectionné.
+            if ext.lower() in (".csv", ".html", ".htm"):
+                path = root + suffix
+            elif not ext:
+                path += suffix
+            self.output_edit.setText(path)
+
+    def _export(self):
+        output = self.output_edit.text().strip()
+        if not output:
+            QMessageBox.warning(self, self.windowTitle(), self.tr("Veuillez choisir un fichier de sortie."))
+            return
+        suffix = self._suffix()
+        root, ext = os.path.splitext(output)
+        if ext.lower() in (".csv", ".html", ".htm"):
+            output = root + suffix
+        elif not ext:
+            output += suffix
+        self.output_edit.setText(output)
+
+        lang = (self.custom_language.text().strip() or self.language_combo.currentData() or "")
+        if lang and not __import__("re").fullmatch(r"[A-Za-z]{2,3}([-_][A-Za-z0-9]{2,8})?", lang):
+            QMessageBox.warning(self, self.windowTitle(), self.tr("Code langue invalide (exemples : fr, sv, pt-BR, zh-CN)."))
+            return
+        sep = self.separator.text()
+        if sep == r"\t":
+            sep = "\t"
+        if not sep:
+            sep = ";"
+        if len(sep) != 1:
+            QMessageBox.warning(self, self.windowTitle(), self.tr("Le séparateur CSV doit être un seul caractère ou \\t."))
+            return
+        page_tpl = self.page_template.toPlainText().strip()
+        if page_tpl and "{lignes}" not in page_tpl:
+            QMessageBox.warning(self, self.windowTitle(), self.tr("Le modèle de page doit contenir la balise {lignes}."))
+            return
+
+        plugins_dir = os.path.join(QgsApplication.qgisSettingsDirPath(), "python", "plugins")
+        if not os.path.isdir(plugins_dir):
+            QMessageBox.critical(self, self.windowTitle(), self.tr("Dossier des plugins introuvable : ") + plugins_dir)
+            return
+        plugins, warnings = core.collect_plugins(plugins_dir)
+        translator = _Translator() if lang else None
+        labels = core.build_labels(lang, translator)
+        self.export_button.setEnabled(False)
+        try:
+            stats = core.resolve_descriptions(plugins, lang, translator, labels)
+            os.makedirs(os.path.dirname(os.path.abspath(output)), exist_ok=True)
+            if suffix == ".csv":
+                content = core.render_csv(plugins, labels, sep)
+                with open(output, "w", encoding="utf-8-sig", newline="") as stream:
+                    stream.write(content)
+            else:
+                content = core.render_html(plugins, labels, lang,
+                    css=self.css.toPlainText(), page_tpl=page_tpl,
+                    row_tpl=self.row_template.toPlainText())
+                with open(output, "w", encoding="utf-8") as stream:
+                    stream.write(content)
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, self.windowTitle(), self.tr("Échec de l'export : ") + str(exc))
+            return
+        finally:
+            self.export_button.setEnabled(True)
+
+        message = self.tr("Export terminé : {n} plugin(s).\nFichier : {path}\nDescriptions : {native} natives, {translated} traduites, {failed} non traduites.").format(
+            n=len(plugins), path=output, native=stats["natif"], translated=stats["traduit"], failed=stats["echec"])
+        if warnings:
+            message += "\n\n" + self.tr("Métadonnées ignorées ou incomplètes :") + "\n" + "\n".join(f"{folder} : {reason}" for folder, reason in warnings[:10])
+        QMessageBox.information(self, self.windowTitle(), message)
