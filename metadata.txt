@@ -1,0 +1,21 @@
+[general]
+name=Liste Plugin
+qgisMinimumVersion=3.28
+qgisMaximumVersion=4.99
+supportsQt6=True
+hasProcessingProvider=yes
+description=Exports the list of installed plugins as HTML or CSV, with descriptions in the language of your choice. / Exporte la liste des plugins installes en HTML ou CSV, avec les descriptions dans la langue de votre choix.
+description[fr]=Exporte la liste des plugins installés en HTML ou CSV, avec les descriptions dans la langue de votre choix.
+about=EN: Processing algorithm (Processing toolbox > Liste Plugin > Mes outils) that lists the installed plugins and exports them as a static HTML page (default or custom style and tags) or as a CSV file. Descriptions are given in the chosen language, translated by the script when the plugin has no description in that language. FR: Algorithme Processing (boite a outils > Liste Plugin > Mes outils) qui liste les plugins installes et les exporte en page HTML statique (style et balises par defaut ou personnalises) ou en fichier CSV. Les descriptions sont fournies dans la langue choisie, traduites par le script lorsque le plugin n'a pas de description dans cette langue.
+version=1.0.0
+author=A renseigner
+email=a.renseigner@example.com
+tracker=
+repository=
+homepage=
+tags=plugins, export, html, csv, translation, processing
+category=Analysis
+icon=icon.png
+experimental=False
+deprecated=False
+changelog=1.0.0 - First version / Premiere version
