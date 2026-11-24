@@ -25,6 +25,7 @@ La fenêtre d’export s’affiche dans une présentation compacte. Les options 
 
 ### Historique des versions
 
+- **1.2.2** – Les champs CSS, modèle de page et modèle de ligne des options avancées sont préremplis avec les paramètres HTML par défaut actuellement utilisés.
 - **1.2.1** – Suppression du changelog bilingue dupliqué dans les métadonnées ; ajout des coordonnées et liens du projet ; documentation mise à jour.
 - **1.2.0** – Fenêtre compacte avec icône et titre ; barre de progression ; détection des descriptions localisées dans une langue incorrecte ; correction de l’affichage des options avancées.
 - **1.1.0** – Entrée dans le menu Extensions et icône de barre d’outils ; aide adaptée à la langue du système ; correction de l’extension du fichier CSV ; traduction automatique plus robuste.
@@ -53,6 +54,7 @@ The export dialog opens in a compact layout. Advanced options let users customiz
 
 ### Version history
 
+- **1.2.2** – Advanced CSS, page template and row template fields are prefilled with the currently active HTML defaults.
 - **1.2.1** – Remove duplicated bilingual changelog text from metadata; add project links and author details; update documentation.
 - **1.2.0** – Compact dialog with icon and title; progress indicator; detection of localized descriptions written in the wrong language; advanced options visibility fix.
 - **1.1.0** – Plugins menu entry and toolbar icon; system-language dialog help; CSV file extension fix; more resilient automatic translation.
@@ -66,10 +68,3 @@ GPL-2.0. See [LICENSE](LICENSE).
 
 - Source code: https://github.com/shenri52/qgis-plugin-liste
 - Issue tracker: https://github.com/shenri52/qgis-plugin-liste/issues
-
-
-## Historique / Version history
-
-- **1.2.2** – Les champs CSS, modèle de page et modèle de ligne des options avancées sont préremplis avec les paramètres HTML par défaut actuellement utilisés. / Advanced CSS, page template and row template fields are prefilled with the currently active HTML defaults.
-- **1.2.1** – Correction de l'affichage du changelog et métadonnées de publication complétées. / Changelog display fix and publication metadata completed.
-- **1.2.0** – Fenêtre compacte, progression de l'export et contrôle de langue des descriptions. / Compact dialog, export progress and description language checking.
