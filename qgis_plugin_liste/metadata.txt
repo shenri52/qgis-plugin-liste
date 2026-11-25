@@ -2,7 +2,6 @@
 name=Liste Plugin
 qgisMinimumVersion=3.28
 qgisMaximumVersion=3.99
-supportsQt6=True
 description=Exports the list of installed QGIS plugins as HTML or CSV, with descriptions in the selected language.
 description[fr]=Exporte la liste des extensions QGIS installées en HTML ou CSV, avec les descriptions dans la langue choisie.
 about=Standalone QGIS plugin to export the installed plugins list as HTML or CSV. It uses plugin-provided localized descriptions when available and otherwise attempts automatic translation. The export dialog is available from the Extensions menu and the toolbar.
