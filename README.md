@@ -25,6 +25,7 @@ La fenêtre d’export s’affiche dans une présentation compacte. Les options 
 
 ### Historique des versions
 
+- **1.2.5** – Correction des avertissements d'analyse de sécurité (Bandit) et compatibilité Qt6 renforcée.
 - **1.2.4** – Poignées de redimensionnement visibles et fenêtre agrandie à l’ouverture des options avancées pour ajuster les zones de texte.
 - **1.2.3** – Les zones de texte du CSS et des modèles HTML peuvent être agrandies indépendamment en déplaçant les séparateurs.
 - **1.2.2** – Les champs CSS, modèle de page et modèle de ligne des options avancées sont préremplis avec les paramètres HTML par défaut actuellement utilisés.
@@ -55,7 +56,7 @@ The export dialog opens in a compact layout. Advanced options let users customiz
 3. Select the downloaded archive.
 
 ### Version history
-
+- **1.2.5** – Fix security scan warnings (Bandit) and improve Qt6 compatibility.
 - **1.2.4** – Visible resize handles and dialog expansion when advanced options are opened, allowing the text areas to be resized.
 - **1.2.3** – CSS and HTML template text areas can be resized independently by dragging the splitters.
 - **1.2.2** – Advanced CSS, page template and row template fields are prefilled with the currently active HTML defaults.
