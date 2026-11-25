@@ -251,8 +251,9 @@ def resolve_descriptions(plugins, lang, translate_fn=None, labels=None,
                         detected = getattr(translate_fn, "last_source_language", None)
                         if checked and detected and _base(detected) != _base(lang):
                             text, how = checked, "traduit"
-                    except Exception:  # noqa: BLE001
-                        pass
+                    except Exception:  # noqa: BLE001 # nosec B110
+                        # Si la détection de langue échoue, on garde la description native
+                        continue
             elif default and _base(lang) != "en" and translate_fn:
                 try:
                     translated = translate_fn(default, lang)
