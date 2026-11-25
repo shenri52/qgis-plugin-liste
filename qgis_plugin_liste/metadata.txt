@@ -6,7 +6,7 @@ description=Exports the list of installed QGIS plugins as HTML or CSV, with desc
 description[fr]=Exporte la liste des extensions QGIS installées en HTML ou CSV, avec les descriptions dans la langue choisie.
 about=Standalone QGIS plugin to export the installed plugins list as HTML or CSV. It uses plugin-provided localized descriptions when available and otherwise attempts automatic translation. The export dialog is available from the Extensions menu and the toolbar.
 about[fr]=Extension QGIS autonome permettant d’exporter la liste des extensions installées en HTML ou CSV. Elle utilise les descriptions traduites fournies par les extensions et, à défaut, tente une traduction automatique. La fenêtre d’export est accessible depuis le menu Extensions et la barre d’outils.
-version=1.2.4
+version=1.2.5
 author=shenri52
 email=shenri.hmn@gmail.com
 tracker=https://github.com/shenri52/qgis-plugin-liste/issues
@@ -16,6 +16,11 @@ tags=plugins, export, html, csv, translation
 icon=icon.png
 experimental=False
 deprecated=False
-changelog=1.2.4 - Make HTML editor splitter handles clearly visible and ensure the dialog expands to provide enough space for resizing the CSS and HTML template editors. / Poignées de redimensionnement des éditeurs HTML rendues visibles ; agrandissement de la fenêtre à l’ouverture des options avancées pour permettre le redimensionnement des zones CSS et modèles HTML.
-    1.2.0 - Compact dialog with application icon and title; progress indicator during plugin scanning, description translation and export; detect and correct wrongly localized descriptions; fix advanced options layout visibility.
-    1.1.0 - Standalone Extensions menu and toolbar action; dialog help follows the system language; CSV save dialog uses the matching extension; more resilient automatic translation with per-plugin fallback.
+changelog=1.2.5 – Fix security scan warnings (Bandit) and improve Qt6 compatibility.
+    1.2.4 – Visible resize handles and dialog expansion when advanced options are opened, allowing the text areas to be resized.
+    1.2.3 – CSS and HTML template text areas can be resized independently by dragging the splitters.
+    1.2.2 – Advanced CSS, page template and row template fields are prefilled with the currently active HTML defaults.
+    1.2.1 – Remove duplicated bilingual changelog text from metadata; add project links and author details; update documentation.
+    1.2.0 – Compact dialog with icon and title; progress indicator; detection of localized descriptions written in the wrong language; advanced options visibility fix.
+    1.1.0 – Plugins menu entry and toolbar icon; system-language dialog help; CSV file extension fix; more resilient automatic translation.
+    1.0.0 – Initial release.
