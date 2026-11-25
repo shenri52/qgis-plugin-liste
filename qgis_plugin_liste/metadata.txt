@@ -6,7 +6,7 @@ description=Exports the list of installed QGIS plugins as HTML or CSV, with desc
 description[fr]=Exporte la liste des extensions QGIS installées en HTML ou CSV, avec les descriptions dans la langue choisie.
 about=Standalone QGIS plugin to export the installed plugins list as HTML or CSV. It uses plugin-provided localized descriptions when available and otherwise attempts automatic translation. The export dialog is available from the Extensions menu and the toolbar.
 about[fr]=Extension QGIS autonome permettant d’exporter la liste des extensions installées en HTML ou CSV. Elle utilise les descriptions traduites fournies par les extensions et, à défaut, tente une traduction automatique. La fenêtre d’export est accessible depuis le menu Extensions et la barre d’outils.
-version=1.2.5
+version=1.2.6
 author=shenri52
 email=shenri.hmn@gmail.com
 tracker=https://github.com/shenri52/qgis-plugin-liste/issues
@@ -16,7 +16,8 @@ tags=plugins, export, html, csv, translation
 icon=icon.png
 experimental=False
 deprecated=False
-changelog=1.2.5 – Fix security scan warnings (Bandit) and improve Qt6 compatibility.
+changelog=1.2.6 – Resolve Bandit static analysis findings and harden file/directory handling.
+    1.2.5 – Fix security scan warnings (Bandit) and improve Qt6 compatibility.
     1.2.4 – Visible resize handles and dialog expansion when advanced options are opened, allowing the text areas to be resized.
     1.2.3 – CSS and HTML template text areas can be resized independently by dragging the splitters.
     1.2.2 – Advanced CSS, page template and row template fields are prefilled with the currently active HTML defaults.
