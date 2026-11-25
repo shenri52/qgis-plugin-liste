@@ -1,7 +1,7 @@
 [general]
 name=Liste Plugin
 qgisMinimumVersion=3.28
-qgisMaximumVersion=4.99
+qgisMaximumVersion=3.99
 supportsQt6=True
 description=Exports the list of installed QGIS plugins as HTML or CSV, with descriptions in the selected language.
 description[fr]=Exporte la liste des extensions QGIS installées en HTML ou CSV, avec les descriptions dans la langue choisie.

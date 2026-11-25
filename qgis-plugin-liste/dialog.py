@@ -2,21 +2,23 @@
 """Fenêtre principale de Liste Plugin (menu Extensions et barre d'outils)."""
 import json
 import os
+import re
 from urllib.parse import quote, urlencode
 
 from qgis.PyQt.QtCore import QLocale, QUrl, Qt
-from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtGui import QDesktopServices, QIcon
 from qgis.PyQt.QtWidgets import (
-    QComboBox, QDialog, QFileDialog, QFormLayout, QHBoxLayout, QLabel,
-    QLineEdit, QMessageBox, QPushButton, QPlainTextEdit, QVBoxLayout,
-    QProgressBar, QApplication, QSplitter, QWidget, QSizePolicy,
+    QApplication, QCheckBox, QComboBox, QDialog, QFileDialog, QFormLayout,
+    QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPlainTextEdit, QProgressBar,
+    QPushButton, QSizePolicy, QSplitter, QVBoxLayout, QWidget,
 )
 from qgis.PyQt.QtNetwork import QNetworkRequest
-from qgis.core import (
-    QgsApplication, QgsBlockingNetworkRequest,
-)
+from qgis.core import QgsApplication, QgsBlockingNetworkRequest, QgsSettings
 
 from . import core
+
+SETTINGS_PREFIX = "ListePlugin/"
+_LANG_RE = re.compile(r"[A-Za-z]{2,3}([-_][A-Za-z0-9]{2,8})?")
 
 
 class _Translator:
@@ -54,7 +56,6 @@ class _Translator:
         url = f"{self.URL}?{urlencode(params, quote_via=quote)}"
         request = QNetworkRequest(QUrl(url))
         request.setHeader(QNetworkRequest.KnownHeaders.UserAgentHeader, "Mozilla/5.0 (QGIS)")
-        # Deux tentatives : une panne ponctuelle ne condamne pas la description.
         for _ in range(2):
             blocking = QgsBlockingNetworkRequest()
             error = blocking.get(request, False)
@@ -73,11 +74,14 @@ class _Translator:
 class ExportDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._canceled = False
+        self._running = False
         self.setWindowTitle(self.tr("Liste des plugins installés"))
         self.setWindowIcon(QIcon(os.path.join(os.path.dirname(__file__), "icon.png")))
         self.setMinimumWidth(650)
         self.setMaximumWidth(900)
         self._build_ui()
+        self._load_settings()
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
@@ -85,7 +89,6 @@ class ExportDialog(QDialog):
         layout.setSpacing(8)
         is_french = QLocale.system().name().lower().startswith("fr")
 
-        # Compact application header: plugin icon and application name.
         header = QHBoxLayout()
         logo = QLabel()
         logo.setPixmap(QIcon(os.path.join(os.path.dirname(__file__), "icon.png")).pixmap(32, 32))
@@ -95,17 +98,21 @@ class ExportDialog(QDialog):
         header.addWidget(app_name)
         header.addStretch(1)
         layout.addLayout(header)
-        help_text = ("Exporte la liste des extensions QGIS installées en HTML ou CSV. "
-                     "Les descriptions sont utilisées dans la langue choisie lorsqu’elles existent, "
-                     "sinon elles sont traduites automatiquement." if is_french else
-                     "Exports the list of installed QGIS plugins as HTML or CSV. "
-                     "Descriptions use the selected language when available and are otherwise "
-                     "translated automatically.")
+
+        help_text = (
+            "Exporte la liste des extensions QGIS installées en HTML ou CSV. "
+            "Les descriptions sont utilisées dans la langue choisie lorsqu’elles existent, "
+            "sinon elles sont traduites automatiquement."
+            if is_french
+            else "Exports the list of installed QGIS plugins as HTML or CSV. "
+            "Descriptions use the selected language when available and are otherwise "
+            "translated automatically."
+        )
         help_label = QLabel(help_text)
         help_label.setWordWrap(True)
         layout.addWidget(help_label)
-        form = QFormLayout()
 
+        form = QFormLayout()
         self.format_combo = QComboBox()
         self.format_combo.addItems(["HTML", "CSV"])
         self.format_combo.currentIndexChanged.connect(self._format_changed)
@@ -114,8 +121,8 @@ class ExportDialog(QDialog):
         self.language_combo = QComboBox()
         for code, label in core.LANGUES:
             self.language_combo.addItem(label, code)
-        default = 1 if QLocale.system().name().lower().startswith("fr") else 2
-        self.language_combo.setCurrentIndex(default)
+        default_lang_idx = 1 if is_french else 2
+        self.language_combo.setCurrentIndex(default_lang_idx)
         form.addRow(self.tr("Langue des descriptions"), self.language_combo)
 
         output_row = QHBoxLayout()
@@ -135,21 +142,22 @@ class ExportDialog(QDialog):
 
         self.advanced = QVBoxLayout()
         self.advanced_widgets = []
+
         self.custom_language = QLineEdit()
         self.custom_language.setPlaceholderText("fr, sv, pt-BR…")
         self.separator = QLineEdit(";")
         self.separator.setMaxLength(2)
+        self.verify_native_checkbox = QCheckBox(
+            self.tr("Vérifier la langue des descriptions déjà localisées (requêtes réseau supplémentaires)")
+        )
+
         self.css = QPlainTextEdit()
-        self.css.setPlaceholderText(self.tr("CSS personnalisé (HTML uniquement)"))
-        # Préremplir les champs avec les paramètres réellement utilisés par
-        # l'export HTML lorsque l'utilisateur ne fournit aucune personnalisation.
         self.css.setPlainText(core.DEFAULT_CSS)
         self.page_template = QPlainTextEdit()
-        self.page_template.setPlaceholderText(self.tr("Modèle de page HTML (balises : {lang} {titre} {css} {entete_nom} {entete_description} {lignes})"))
         self.page_template.setPlainText(core.DEFAULT_PAGE)
         self.row_template = QPlainTextEdit()
-        self.row_template.setPlaceholderText(self.tr("Modèle de ligne HTML (balises : {nom} {description} {version} {auteur} {dossier} {homepage})"))
         self.row_template.setPlainText(core.DEFAULT_ROW)
+
         for label, widget in [
             (self.tr("Code langue personnalisé"), self.custom_language),
             (self.tr("Séparateur CSV (un caractère ou \\t)"), self.separator),
@@ -159,10 +167,14 @@ class ExportDialog(QDialog):
             self.advanced.addWidget(widget)
             self.advanced_widgets.extend([label_widget, widget])
 
-        # Les trois zones HTML sont placées dans un séparateur vertical :
-        # l'utilisateur peut déplacer les poignées entre les zones pour
-        # agrandir celle qu'il souhaite modifier.
-        self.html_editors_splitter = QSplitter(Qt.Vertical)
+        self.advanced.addWidget(self.verify_native_checkbox)
+        self.advanced_widgets.append(self.verify_native_checkbox)
+
+        orientation = getattr(getattr(Qt, "Orientation", Qt), "Vertical")
+        wrap_mode = getattr(getattr(QPlainTextEdit, "LineWrapMode", QPlainTextEdit), "NoWrap")
+        expanding = getattr(getattr(QSizePolicy, "Policy", QSizePolicy), "Expanding")
+
+        self.html_editors_splitter = QSplitter(orientation)
         self.html_editors_splitter.setChildrenCollapsible(False)
         self.html_editors_splitter.setHandleWidth(10)
         self.html_editors_splitter.setMinimumHeight(390)
@@ -184,18 +196,25 @@ class ExportDialog(QDialog):
             label_widget = QLabel(label)
             editor_layout.addWidget(label_widget)
             editor.setMinimumHeight(55)
-            editor.setLineWrapMode(QPlainTextEdit.NoWrap)
-            editor.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+            editor.setLineWrapMode(wrap_mode)
+            editor.setSizePolicy(expanding, expanding)
             editor_layout.addWidget(editor, 1)
             editor_group.setMinimumHeight(80)
             self.html_editors_splitter.addWidget(editor_group)
             self.advanced_widgets.append(editor_group)
+
         self.html_editors_splitter.setStretchFactor(0, 1)
         self.html_editors_splitter.setStretchFactor(1, 2)
         self.html_editors_splitter.setStretchFactor(2, 1)
         self.html_editors_splitter.setSizes([150, 210, 150])
         self.advanced.addWidget(self.html_editors_splitter, 1)
         self.advanced_widgets.append(self.html_editors_splitter)
+
+        self.reset_templates_button = QPushButton(self.tr("Réinitialiser CSS et modèles HTML"))
+        self.reset_templates_button.clicked.connect(self._reset_templates)
+        self.advanced.addWidget(self.reset_templates_button)
+        self.advanced_widgets.append(self.reset_templates_button)
+
         layout.addLayout(self.advanced)
         self._toggle_advanced(False)
 
@@ -213,20 +232,69 @@ class ExportDialog(QDialog):
         buttons.addStretch(1)
         self.export_button = QPushButton(self.tr("Exporter"))
         self.export_button.clicked.connect(self._export)
-        close_button = QPushButton(self.tr("Fermer"))
-        close_button.clicked.connect(self.reject)
+        self.cancel_or_close_button = QPushButton(self.tr("Fermer"))
+        self.cancel_or_close_button.clicked.connect(self._on_cancel_or_close)
         buttons.addWidget(self.export_button)
-        buttons.addWidget(close_button)
+        buttons.addWidget(self.cancel_or_close_button)
         layout.addLayout(buttons)
+
+    def _reset_templates(self):
+        self.css.setPlainText(core.DEFAULT_CSS)
+        self.page_template.setPlainText(core.DEFAULT_PAGE)
+        self.row_template.setPlainText(core.DEFAULT_ROW)
+
+    def _load_settings(self):
+        settings = QgsSettings()
+        fmt_idx = settings.value(SETTINGS_PREFIX + "format_index", 0, type=int)
+        if 0 <= fmt_idx < self.format_combo.count():
+            self.format_combo.setCurrentIndex(fmt_idx)
+        lang_idx = settings.value(SETTINGS_PREFIX + "lang_index", self.language_combo.currentIndex(), type=int)
+        if 0 <= lang_idx < self.language_combo.count():
+            self.language_combo.setCurrentIndex(lang_idx)
+        output_path = settings.value(SETTINGS_PREFIX + "output_path", "", type=str)
+        if output_path:
+            self.output_edit.setText(output_path)
+        self.custom_language.setText(settings.value(SETTINGS_PREFIX + "custom_language", "", type=str))
+        self.separator.setText(settings.value(SETTINGS_PREFIX + "separator", ";", type=str) or ";")
+        self.verify_native_checkbox.setChecked(
+            settings.value(SETTINGS_PREFIX + "verify_native_lang", False, type=bool)
+        )
+        css = settings.value(SETTINGS_PREFIX + "css", "", type=str)
+        if css:
+            self.css.setPlainText(css)
+        page_tpl = settings.value(SETTINGS_PREFIX + "page_template", "", type=str)
+        if page_tpl:
+            self.page_template.setPlainText(page_tpl)
+        row_tpl = settings.value(SETTINGS_PREFIX + "row_template", "", type=str)
+        if row_tpl:
+            self.row_template.setPlainText(row_tpl)
+
+    def _save_settings(self):
+        settings = QgsSettings()
+        settings.setValue(SETTINGS_PREFIX + "format_index", self.format_combo.currentIndex())
+        settings.setValue(SETTINGS_PREFIX + "lang_index", self.language_combo.currentIndex())
+        settings.setValue(SETTINGS_PREFIX + "output_path", self.output_edit.text().strip())
+        settings.setValue(SETTINGS_PREFIX + "custom_language", self.custom_language.text().strip())
+        settings.setValue(SETTINGS_PREFIX + "separator", self.separator.text())
+        settings.setValue(SETTINGS_PREFIX + "verify_native_lang", self.verify_native_checkbox.isChecked())
+        settings.setValue(SETTINGS_PREFIX + "css", self.css.toPlainText())
+        settings.setValue(SETTINGS_PREFIX + "page_template", self.page_template.toPlainText())
+        settings.setValue(SETTINGS_PREFIX + "row_template", self.row_template.toPlainText())
+
+    def _on_cancel_or_close(self):
+        if self._running:
+            self._canceled = True
+            self.cancel_or_close_button.setEnabled(False)
+            self.progress_label.setText(self.tr("Annulation en cours…"))
+        else:
+            self.reject()
 
     def _toggle_advanced(self, checked):
         self.advanced_toggle.setText(self.tr("Options avancées ▾") if checked else self.tr("Options avancées ▸"))
         for widget in self.advanced_widgets:
             widget.setVisible(checked)
         if checked:
-            # Give the splitter real vertical room; otherwise Qt may keep the
-            # dialog at its compact height and leave no usable area to drag.
-            self.resize(self.width(), max(self.height(), 760))
+            self.resize(self.width(), max(self.height(), 780))
             self.html_editors_splitter.setSizes([170, 240, 170])
 
     def _suffix(self):
@@ -244,11 +312,16 @@ class ExportDialog(QDialog):
         current = self.output_edit.text().strip()
         if not current:
             current = os.path.join(QgsApplication.qgisSettingsDirPath(), "plugins_installes" + suffix)
-        filters = self.tr("Fichiers CSV (*.csv);;Tous les fichiers (*)") if suffix == ".csv" else self.tr("Fichiers HTML (*.html *.htm);;Tous les fichiers (*)")
-        path, selected_filter = QFileDialog.getSaveFileName(self, self.tr("Enregistrer la liste des plugins"), current, filters)
+        filters = (
+            self.tr("Fichiers CSV (*.csv);;Tous les fichiers (*)")
+            if suffix == ".csv"
+            else self.tr("Fichiers HTML (*.html *.htm);;Tous les fichiers (*)")
+        )
+        path, _selected_filter = QFileDialog.getSaveFileName(
+            self, self.tr("Enregistrer la liste des plugins"), current, filters
+        )
         if path:
             root, ext = os.path.splitext(path)
-            # L'extension est toujours cohérente avec le format sélectionné.
             if ext.lower() in (".csv", ".html", ".htm"):
                 path = root + suffix
             elif not ext:
@@ -269,32 +342,49 @@ class ExportDialog(QDialog):
         self.output_edit.setText(output)
 
         lang = (self.custom_language.text().strip() or self.language_combo.currentData() or "")
-        if lang and not __import__("re").fullmatch(r"[A-Za-z]{2,3}([-_][A-Za-z0-9]{2,8})?", lang):
-            QMessageBox.warning(self, self.windowTitle(), self.tr("Code langue invalide (exemples : fr, sv, pt-BR, zh-CN)."))
+        if lang and not _LANG_RE.fullmatch(lang):
+            QMessageBox.warning(
+                self, self.windowTitle(), self.tr("Code langue invalide (exemples : fr, sv, pt-BR, zh-CN).")
+            )
             return
+
         sep = self.separator.text()
         if sep == r"\t":
             sep = "\t"
         if not sep:
             sep = ";"
         if len(sep) != 1:
-            QMessageBox.warning(self, self.windowTitle(), self.tr("Le séparateur CSV doit être un seul caractère ou \\t."))
+            QMessageBox.warning(
+                self, self.windowTitle(), self.tr("Le séparateur CSV doit être un seul caractère ou \\t.")
+            )
             return
+
         page_tpl = self.page_template.toPlainText().strip()
         if page_tpl and "{lignes}" not in page_tpl:
-            QMessageBox.warning(self, self.windowTitle(), self.tr("Le modèle de page doit contenir la balise {lignes}."))
+            QMessageBox.warning(
+                self, self.windowTitle(), self.tr("Le modèle de page doit contenir la balise {lignes}.")
+            )
             return
 
         plugins_dir = os.path.join(QgsApplication.qgisSettingsDirPath(), "python", "plugins")
         if not os.path.isdir(plugins_dir):
-            QMessageBox.critical(self, self.windowTitle(), self.tr("Dossier des plugins introuvable : ") + plugins_dir)
+            QMessageBox.critical(
+                self, self.windowTitle(), self.tr("Dossier des plugins introuvable : ") + plugins_dir
+            )
             return
+
+        self._save_settings()
+        self._canceled = False
+        self._running = True
         self.export_button.setEnabled(False)
+        self.cancel_or_close_button.setText(self.tr("Annuler"))
+        self.cancel_or_close_button.setEnabled(True)
         self.progress_bar.setVisible(True)
         self.progress_label.setVisible(True)
         self.progress_bar.setRange(0, 0)
         self.progress_label.setText(self.tr("Lecture des extensions installées…"))
         QApplication.processEvents()
+
         try:
             plugins, warnings = core.collect_plugins(plugins_dir)
             translator = _Translator() if lang else None
@@ -315,8 +405,18 @@ class ExportDialog(QDialog):
                 QApplication.processEvents()
 
             stats = core.resolve_descriptions(
-                plugins, lang, translator, labels, on_progress=update_progress
+                plugins,
+                lang,
+                translator,
+                labels,
+                is_canceled=lambda: self._canceled,
+                on_progress=update_progress,
+                verify_native_lang=self.verify_native_checkbox.isChecked(),
             )
+            if self._canceled:
+                QMessageBox.information(self, self.windowTitle(), self.tr("Export annulé."))
+                return
+
             self.progress_label.setText(self.tr("Création du fichier d’export…"))
             QApplication.processEvents()
             os.makedirs(os.path.dirname(os.path.abspath(output)), exist_ok=True)
@@ -325,21 +425,52 @@ class ExportDialog(QDialog):
                 with open(output, "w", encoding="utf-8-sig", newline="") as stream:
                     stream.write(content)
             else:
-                content = core.render_html(plugins, labels, lang,
-                    css=self.css.toPlainText(), page_tpl=page_tpl,
-                    row_tpl=self.row_template.toPlainText())
+                content = core.render_html(
+                    plugins,
+                    labels,
+                    lang,
+                    css=self.css.toPlainText(),
+                    page_tpl=page_tpl,
+                    row_tpl=self.row_template.toPlainText(),
+                )
                 with open(output, "w", encoding="utf-8") as stream:
                     stream.write(content)
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, self.windowTitle(), self.tr("Échec de l'export : ") + str(exc))
             return
         finally:
+            self._running = False
             self.export_button.setEnabled(True)
+            self.cancel_or_close_button.setText(self.tr("Fermer"))
+            self.cancel_or_close_button.setEnabled(True)
             self.progress_bar.setVisible(False)
             self.progress_label.setVisible(False)
 
-        message = self.tr("Export terminé : {n} plugin(s).\nFichier : {path}\nDescriptions : {native} natives, {translated} traduites, {failed} non traduites.").format(
-            n=len(plugins), path=output, native=stats["natif"], translated=stats["traduit"], failed=stats["echec"])
+        message = self.tr(
+            "Export terminé : {n} plugin(s).\nFichier : {path}\n"
+            "Descriptions : {native} natives, {translated} traduites, {failed} non traduites."
+        ).format(
+            n=len(plugins),
+            path=output,
+            native=stats["natif"],
+            translated=stats["traduit"],
+            failed=stats["echec"],
+        )
         if warnings:
-            message += "\n\n" + self.tr("Métadonnées ignorées ou incomplètes :") + "\n" + "\n".join(f"{folder} : {reason}" for folder, reason in warnings[:10])
-        QMessageBox.information(self, self.windowTitle(), message)
+            message += (
+                "\n\n"
+                + self.tr("Métadonnées ignorées ou incomplètes :")
+                + "\n"
+                + "\n".join(f"{folder} : {reason}" for folder, reason in warnings[:10])
+            )
+
+        msg_box = QMessageBox(self)
+        msg_box.setIcon(QMessageBox.Icon.Information)
+        msg_box.setWindowTitle(self.windowTitle())
+        msg_box.setText(message)
+        open_btn = msg_box.addButton(self.tr("Ouvrir le fichier"), QMessageBox.ButtonRole.ActionRole)
+        msg_box.addButton(QMessageBox.StandardButton.Ok)
+        exec_fn = getattr(msg_box, "exec", None) or msg_box.exec_
+        exec_fn()
+        if msg_box.clickedButton() == open_btn:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.abspath(output)))

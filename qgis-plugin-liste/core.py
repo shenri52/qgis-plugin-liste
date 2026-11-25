@@ -49,7 +49,7 @@ LABELS_EN = {
 }
 
 # ------------------------------------------------------------------------------
-# Style HTML par défaut (= style du script d'origine) et modèles
+# Style HTML par défaut et modèles
 # ------------------------------------------------------------------------------
 DEFAULT_CSS = """\
 body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; background: white; }
@@ -63,8 +63,7 @@ th:first-child { border-radius: 10px 0 0 10px; }
 th:last-child { border-radius: 0 10px 10px 0; }
 td:first-child { border-left: 1px solid #eee; background-image: linear-gradient(90deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 10px 0 0 10px; }
 td:last-child { border-right: 1px solid #eee; background-image: linear-gradient(90deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 0 10px 10px 0; }
-tr:hover { background: #ffffff !important; }
-tr:hover td { background: transparent !important; border-color: #3498db; }"""
+tr:hover td { background: #eef7ff !important; border-color: #3498db; }"""
 
 DEFAULT_PAGE = """\
 <!DOCTYPE html>
@@ -125,7 +124,7 @@ def collect_plugins(plugins_dir):
     """
     Lit les metadata.txt du dossier des plugins utilisateur.
     Retourne (liste de plugins triée par nom, liste d'avertissements).
-    Les plugins `readonly=true` (plugins cœur) sont ignorés, comme avant.
+    Les plugins `readonly=true` (plugins cœur) sont ignorés.
     """
     plugins, warnings = [], []
     for folder in sorted(os.listdir(plugins_dir), key=str.lower):
@@ -133,7 +132,6 @@ def collect_plugins(plugins_dir):
         if not os.path.isfile(meta):
             continue
         try:
-            # interpolation=None : un '%' dans une description ne fait plus planter la lecture
             parser = configparser.ConfigParser(interpolation=None, strict=False)
             with open(meta, encoding="utf-8-sig", errors="replace") as fh:
                 parser.read_file(fh)
@@ -173,7 +171,7 @@ def _lookup_localized(localized, lang):
     for key in (norm, base):
         if localized.get(key):
             return localized[key]
-    if norm == base:  # langue sans région demandée : accepter fr_FR, pt_BR...
+    if norm == base:
         for key, value in localized.items():
             if key.split("_")[0] == base and value:
                 return value
@@ -222,7 +220,7 @@ def build_labels(lang, translate_fn=None):
 
 
 def resolve_descriptions(plugins, lang, translate_fn=None, labels=None,
-                         is_canceled=None, on_progress=None):
+                         is_canceled=None, on_progress=None, verify_native_lang=False):
     """
     Renseigne p['description'] pour chaque plugin :
       1. description[<lang>] du metadata.txt si elle existe          -> 'natif'
@@ -247,10 +245,7 @@ def resolve_descriptions(plugins, lang, translate_fn=None, labels=None,
             native = _lookup_localized(p["localized"], lang)
             if native:
                 text, how = native, "natif"
-                # A localized metadata field can itself contain text in the wrong
-                # language. Ask the translator to detect its source language and
-                # repair it only when it clearly differs from the requested one.
-                if translate_fn and _base(lang) != "en":
+                if verify_native_lang and translate_fn and _base(lang) != "en":
                     try:
                         checked = translate_fn(native, lang)
                         detected = getattr(translate_fn, "last_source_language", None)
@@ -279,7 +274,7 @@ def resolve_descriptions(plugins, lang, translate_fn=None, labels=None,
 # Rendus
 # ------------------------------------------------------------------------------
 def render_html(plugins, labels, lang, css="", page_tpl="", row_tpl=""):
-    """HTML statique : plus aucun JavaScript, la traduction est déjà faite."""
+    """HTML statique : la traduction est déjà effectuée en amont."""
     row_tpl = row_tpl.strip() and row_tpl or DEFAULT_ROW
     page_tpl = page_tpl.strip() and page_tpl or DEFAULT_PAGE
 
