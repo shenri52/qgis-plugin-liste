@@ -1,0 +1,25 @@
+name: Build QGIS Plugin ZIP
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Récupérer le code du dépôt
+        uses: actions/checkout@v4
+
+      - name: Créer le ZIP propre pour QGIS
+        run: |
+          zip -r qgis_plugin_liste.zip qgis_plugin_liste -x "*.git*" "*.github*" "*__pycache__*"
+
+      - name: Ajouter le ZIP à la Release GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          files: qgis_plugin_liste.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
