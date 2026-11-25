@@ -14,9 +14,6 @@ import io
 import os
 import re
 
-# ------------------------------------------------------------------------------
-# Langues proposées (code Google Translate, libellé). Code vide = pas de traduction
-# ------------------------------------------------------------------------------
 LANGUES = [
     ("", "Original (sans traduction)"),
     ("fr", "Français (fr)"),
@@ -48,9 +45,6 @@ LABELS_EN = {
     "sans_description": "No description.",
 }
 
-# ------------------------------------------------------------------------------
-# Style HTML par défaut et modèles
-# ------------------------------------------------------------------------------
 DEFAULT_CSS = """\
 body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; background: white; }
 table { width: 100%; border-collapse: separate; border-spacing: 0 10px; }
@@ -105,9 +99,6 @@ def _fill(template, values):
     return _TOKEN.sub(lambda m: values.get(m.group(1), m.group(0)), template)
 
 
-# ------------------------------------------------------------------------------
-# Lecture des plugins
-# ------------------------------------------------------------------------------
 def _clean(text):
     return " ".join((text or "").split())
 
@@ -127,6 +118,9 @@ def collect_plugins(plugins_dir):
     Les plugins `readonly=true` (plugins cœur) sont ignorés.
     """
     plugins, warnings = [], []
+    if not plugins_dir or not os.path.isdir(plugins_dir):
+        return plugins, warnings
+
     for folder in sorted(os.listdir(plugins_dir), key=str.lower):
         meta = os.path.join(plugins_dir, folder, "metadata.txt")
         if not os.path.isfile(meta):
@@ -200,6 +194,39 @@ def split_text(text, limit=1200):
     return chunks
 
 
+def _safe_translate(translate_fn, text, lang):
+    """Appelle translate_fn de manière isolée et retourne None en cas d'erreur."""
+    try:
+        return translate_fn(text, lang)
+    except Exception as exc:  # noqa: BLE001
+        _ = exc
+        return None
+
+
+def _resolve_single_description(plugin, lang, translate_fn, verify_native_lang):
+    """Détermine le texte et l'origine ('original', 'natif', 'traduit', 'echec') d'un plugin."""
+    default = plugin["description_defaut"]
+    if not lang:
+        return default, "original"
+
+    native = _lookup_localized(plugin["localized"], lang)
+    if native:
+        if verify_native_lang and translate_fn and _base(lang) != "en":
+            checked = _safe_translate(translate_fn, native, lang)
+            detected = getattr(translate_fn, "last_source_language", None)
+            if checked and detected and _base(detected) != _base(lang):
+                return checked, "traduit"
+        return native, "natif"
+
+    if default and _base(lang) != "en" and translate_fn:
+        translated = _safe_translate(translate_fn, default, lang)
+        if translated:
+            return translated, "traduit"
+        return default, "echec"
+
+    return default, "original"
+
+
 def build_labels(lang, translate_fn=None):
     """Titre / en-têtes / texte « sans description » dans la langue de sortie."""
     base = _base(lang)
@@ -209,12 +236,7 @@ def build_labels(lang, translate_fn=None):
         return dict(LABELS_EN)
     labels = {}
     for key, value in LABELS_EN.items():
-        translated = None
-        if translate_fn:
-            try:
-                translated = translate_fn(value, lang)
-            except Exception:  # noqa: BLE001
-                translated = None
+        translated = _safe_translate(translate_fn, value, lang) if translate_fn else None
         labels[key] = translated or value
     return labels
 
@@ -239,31 +261,8 @@ def resolve_descriptions(plugins, lang, translate_fn=None, labels=None,
     for i, p in enumerate(plugins):
         if is_canceled and is_canceled():
             break
-        default = p["description_defaut"]
-        text, how = default, "original"
-        if lang:
-            native = _lookup_localized(p["localized"], lang)
-            if native:
-                text, how = native, "natif"
-                if verify_native_lang and translate_fn and _base(lang) != "en":
-                    try:
-                        checked = translate_fn(native, lang)
-                        detected = getattr(translate_fn, "last_source_language", None)
-                        if checked and detected and _base(detected) != _base(lang):
-                            text, how = checked, "traduit"
-                    except Exception:  # noqa: BLE001 # nosec B110
-                        # Si la détection de langue échoue, on garde la description native
-                        continue
-            elif default and _base(lang) != "en" and translate_fn:
-                try:
-                    translated = translate_fn(default, lang)
-                except Exception:  # noqa: BLE001
-                    translated = None
-                if translated:
-                    text, how = translated, "traduit"
-                else:
-                    how = "echec"
-        p["description"] = text or labels["sans_description"]
+        raw_text, how = _resolve_single_description(p, lang, translate_fn, verify_native_lang)
+        p["description"] = raw_text or labels["sans_description"]
         p["how"] = how
         stats[how] += 1
         if on_progress:
@@ -271,9 +270,6 @@ def resolve_descriptions(plugins, lang, translate_fn=None, labels=None,
     return stats
 
 
-# ------------------------------------------------------------------------------
-# Rendus
-# ------------------------------------------------------------------------------
 def render_html(plugins, labels, lang, css="", page_tpl="", row_tpl=""):
     """HTML statique : la traduction est déjà effectuée en amont."""
     row_tpl = row_tpl.strip() and row_tpl or DEFAULT_ROW
