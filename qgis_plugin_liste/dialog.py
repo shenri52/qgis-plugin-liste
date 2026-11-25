@@ -21,6 +21,18 @@ SETTINGS_PREFIX = "ListePlugin/"
 _LANG_RE = re.compile(r"[A-Za-z]{2,3}([-_][A-Za-z0-9]{2,8})?")
 
 
+def _decode_translation_payload(raw_content):
+    """Décode la réponse JSON de traduction et retourne (texte, langue_source) ou None."""
+    try:
+        data = json.loads(bytes(raw_content).decode("utf-8"))
+        result = "".join(seg[0] for seg in data[0] if seg and seg[0]).strip()
+        source = data[2] if len(data) > 2 else None
+        return (result, source) if result else None
+    except Exception as exc:  # noqa: BLE001
+        _ = exc
+        return None
+
+
 class _Translator:
     """Traduction via le réseau QGIS, avec échecs isolés par description."""
     URL = "https://translate.googleapis.com/translate_a/single"
@@ -56,19 +68,16 @@ class _Translator:
         url = f"{self.URL}?{urlencode(params, quote_via=quote)}"
         request = QNetworkRequest(QUrl(url))
         request.setHeader(QNetworkRequest.KnownHeaders.UserAgentHeader, "Mozilla/5.0 (QGIS)")
+        no_error = getattr(getattr(QgsBlockingNetworkRequest, "ErrorCode", QgsBlockingNetworkRequest), "NoError")
         for _ in range(2):
             blocking = QgsBlockingNetworkRequest()
             error = blocking.get(request, False)
-            if error == getattr(getattr(QgsBlockingNetworkRequest, "ErrorCode", QgsBlockingNetworkRequest), "NoError"):
-                try:
-                    data = json.loads(bytes(blocking.reply().content()).decode("utf-8"))
-                    result = "".join(seg[0] for seg in data[0] if seg and seg[0]).strip()
-                    self.last_source_language = data[2] if len(data) > 2 else None
-                    if result:
-                        return result
-                except Exception:  # noqa: BLE001 # nosec B110
-                    # Réponse réseau illisible : on retente ou on passe à la suite
-                    continue
+            if error == no_error:
+                decoded = _decode_translation_payload(blocking.reply().content())
+                if decoded:
+                    result, source = decoded
+                    self.last_source_language = source
+                    return result
         return None
 
 
@@ -77,8 +86,11 @@ class ExportDialog(QDialog):
         super().__init__(parent)
         self._canceled = False
         self._running = False
+        icon_path = os.path.join(os.path.dirname(__file__), "icon.png")
+        self._icon = QIcon(icon_path) if os.path.isfile(icon_path) else QIcon()
         self.setWindowTitle(self.tr("Liste des plugins installés"))
-        self.setWindowIcon(QIcon(os.path.join(os.path.dirname(__file__), "icon.png")))
+        if not self._icon.isNull():
+            self.setWindowIcon(self._icon)
         self.setMinimumWidth(650)
         self.setMaximumWidth(900)
         self._build_ui()
@@ -91,9 +103,10 @@ class ExportDialog(QDialog):
         is_french = QLocale.system().name().lower().startswith("fr")
 
         header = QHBoxLayout()
-        logo = QLabel()
-        logo.setPixmap(QIcon(os.path.join(os.path.dirname(__file__), "icon.png")).pixmap(32, 32))
-        header.addWidget(logo)
+        if not self._icon.isNull():
+            logo = QLabel()
+            logo.setPixmap(self._icon.pixmap(32, 32))
+            header.addWidget(logo)
         app_name = QLabel(self.tr("Liste des plugins installés"))
         app_name.setStyleSheet("font-size: 15px; font-weight: 600;")
         header.addWidget(app_name)
@@ -329,11 +342,11 @@ class ExportDialog(QDialog):
                 path += suffix
             self.output_edit.setText(path)
 
-    def _export(self):
+    def _validate_export_inputs(self):
         output = self.output_edit.text().strip()
         if not output:
             QMessageBox.warning(self, self.windowTitle(), self.tr("Veuillez choisir un fichier de sortie."))
-            return
+            return None
         suffix = self._suffix()
         root, ext = os.path.splitext(output)
         if ext.lower() in (".csv", ".html", ".htm"):
@@ -347,7 +360,7 @@ class ExportDialog(QDialog):
             QMessageBox.warning(
                 self, self.windowTitle(), self.tr("Code langue invalide (exemples : fr, sv, pt-BR, zh-CN).")
             )
-            return
+            return None
 
         sep = self.separator.text()
         if sep == r"\t":
@@ -358,21 +371,49 @@ class ExportDialog(QDialog):
             QMessageBox.warning(
                 self, self.windowTitle(), self.tr("Le séparateur CSV doit être un seul caractère ou \\t.")
             )
-            return
+            return None
 
         page_tpl = self.page_template.toPlainText().strip()
         if page_tpl and "{lignes}" not in page_tpl:
             QMessageBox.warning(
                 self, self.windowTitle(), self.tr("Le modèle de page doit contenir la balise {lignes}.")
             )
-            return
+            return None
 
         plugins_dir = os.path.join(QgsApplication.qgisSettingsDirPath(), "python", "plugins")
         if not os.path.isdir(plugins_dir):
             QMessageBox.critical(
                 self, self.windowTitle(), self.tr("Dossier des plugins introuvable : ") + plugins_dir
             )
+            return None
+
+        return output, suffix, lang, sep, page_tpl, plugins_dir
+
+    def _write_output_file(self, output, suffix, lang, page_tpl, sep, plugins):
+        target_dir = os.path.dirname(os.path.abspath(output))
+        if target_dir:
+            os.makedirs(target_dir, exist_ok=True)
+        if suffix == ".csv":
+            content = core.render_csv(plugins, self._current_labels, sep)
+            with open(output, "w", encoding="utf-8-sig", newline="") as stream:
+                stream.write(content)
+        else:
+            content = core.render_html(
+                plugins,
+                self._current_labels,
+                lang,
+                css=self.css.toPlainText(),
+                page_tpl=page_tpl,
+                row_tpl=self.row_template.toPlainText(),
+            )
+            with open(output, "w", encoding="utf-8") as stream:
+                stream.write(content)
+
+    def _export(self):
+        validated = self._validate_export_inputs()
+        if not validated:
             return
+        output, suffix, lang, sep, page_tpl, plugins_dir = validated
 
         self._save_settings()
         self._canceled = False
@@ -389,7 +430,7 @@ class ExportDialog(QDialog):
         try:
             plugins, warnings = core.collect_plugins(plugins_dir)
             translator = _Translator() if lang else None
-            labels = core.build_labels(lang, translator)
+            self._current_labels = core.build_labels(lang, translator)
             self.progress_bar.setRange(0, max(1, len(plugins)))
             self.progress_bar.setValue(0)
             self.progress_label.setText(self.tr("Analyse et traduction des descriptions…"))
@@ -409,7 +450,7 @@ class ExportDialog(QDialog):
                 plugins,
                 lang,
                 translator,
-                labels,
+                self._current_labels,
                 is_canceled=lambda: self._canceled,
                 on_progress=update_progress,
                 verify_native_lang=self.verify_native_checkbox.isChecked(),
@@ -420,22 +461,7 @@ class ExportDialog(QDialog):
 
             self.progress_label.setText(self.tr("Création du fichier d’export…"))
             QApplication.processEvents()
-            os.makedirs(os.path.dirname(os.path.abspath(output)), exist_ok=True)
-            if suffix == ".csv":
-                content = core.render_csv(plugins, labels, sep)
-                with open(output, "w", encoding="utf-8-sig", newline="") as stream:
-                    stream.write(content)
-            else:
-                content = core.render_html(
-                    plugins,
-                    labels,
-                    lang,
-                    css=self.css.toPlainText(),
-                    page_tpl=page_tpl,
-                    row_tpl=self.row_template.toPlainText(),
-                )
-                with open(output, "w", encoding="utf-8") as stream:
-                    stream.write(content)
+            self._write_output_file(output, suffix, lang, page_tpl, sep, plugins)
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, self.windowTitle(), self.tr("Échec de l'export : ") + str(exc))
             return
