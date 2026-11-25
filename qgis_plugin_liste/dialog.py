@@ -66,8 +66,9 @@ class _Translator:
                     self.last_source_language = data[2] if len(data) > 2 else None
                     if result:
                         return result
-                except Exception:  # noqa: BLE001
-                    pass
+                except Exception:  # noqa: BLE001 # nosec B110
+                    # Réponse réseau illisible : on retente ou on passe à la suite
+                    continue
         return None
 
 
