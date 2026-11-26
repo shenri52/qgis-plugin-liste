@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 import os
 
-from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QAction, QIcon
 
-from .dialog import ExportDialog
+from .dialog import ExportDialog, cleanup_previews
+from .i18n import tr
 
 
 class ListePluginPlugin:
@@ -18,15 +18,12 @@ class ListePluginPlugin:
     def initGui(self):  # noqa: N802
         icon_path = os.path.join(os.path.dirname(__file__), "icon.png")
         icon = QIcon(icon_path) if os.path.isfile(icon_path) else QIcon()
-        self.action = QAction(icon, self.tr("Liste des plugins installés"), self.iface.mainWindow())
+        self.action = QAction(icon, tr("Liste des plugins installés"), self.iface.mainWindow())
         self.action.setObjectName("ListePluginAction")
-        self.action.setToolTip(self.tr("Exporter la liste des plugins installés en HTML ou CSV"))
+        self.action.setToolTip(tr("Exporter la liste des plugins installés en HTML ou CSV"))
         self.action.triggered.connect(self.run)
-        self.iface.addPluginToMenu(self.tr("&Liste Plugin"), self.action)
+        self.iface.addPluginToMenu("&Liste Plugin", self.action)
         self.iface.addToolBarIcon(self.action)
-
-    def tr(self, text):
-        return QCoreApplication.translate("ListePlugin", text)
 
     def run(self):
         main_win = self.iface.mainWindow() if self.iface else None
@@ -36,6 +33,7 @@ class ListePluginPlugin:
 
     def unload(self):
         if self.action is not None:
-            self.iface.removePluginMenu(self.tr("&Liste Plugin"), self.action)
+            self.iface.removePluginMenu("&Liste Plugin", self.action)
             self.iface.removeToolBarIcon(self.action)
             self.action = None
+        cleanup_previews()

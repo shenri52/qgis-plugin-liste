@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<!--
+  Modèle Liste Plugin / Liste Plugin template.
+  FR : les balises s'écrivent entre doubles accolades (titre, nombre, libelle_nombre, date, lang, entete_nom,
+       entete_description, entete_version, entete_auteur, entete_dossier, entete_homepage).
+       Le bloc situé entre les deux marqueurs LIGNE est répété pour chaque plugin ; il peut
+       utiliser nom, description, version, auteur, dossier, homepage et numero.
+       Un bloc entouré des marqueurs CHAMP suivis du nom d'un champ (nom, description, version,
+       auteur, dossier, homepage) n'est affiché que si ce champ est coché dans l'export.
+  EN : tags are written between double curly braces (same names as above). The block between
+       the two LIGNE markers is repeated for every plugin. A block wrapped in CHAMP markers
+       followed by a field name is only kept when that field is ticked in the export.
+-->
+<html lang="{{lang}}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{titre}}</title>
+    <style>
+:root {
+    --accent: #2f4858;
+    --accent-survol: #3d6075;
+    --texte: #161616;
+    --texte-discret: #3a3a3a;
+    --bordure: #dddddd;
+    --fond-alt: #f6f6f6;
+    --badge-fond: #e8edf1;
+    --badge-texte: #2f4858;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; font-size: 1rem; line-height: 1.5rem; color: var(--texte); background: #fff; }
+.conteneur { max-width: 78rem; margin: 0 auto; padding: 0 1rem; }
+.entete { border-bottom: 1px solid var(--bordure); background: #fff; padding: 1.5rem 0 1rem; margin-bottom: 2rem; }
+.entete h1 { margin: 0 0 .25rem; font-size: 2rem; line-height: 2.5rem; color: var(--texte); }
+.sous-titre { margin: 0; color: var(--texte-discret); font-size: .875rem; }
+.grille { list-style: none; margin: 0 0 3rem; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr)); gap: 1.5rem; }
+.carte { height: 100%; padding: 1.5rem; background: #fff; box-shadow: inset 0 0 0 1px var(--bordure); border-bottom: 4px solid var(--accent); }
+.carte:hover { background: var(--fond-alt); }
+.carte__titre { margin: 0 0 .75rem; font-size: 1.25rem; line-height: 1.75rem; font-weight: 700; color: var(--accent); }
+.carte__badge { margin: 0 0 .75rem; }
+.badge { display: inline-block; padding: 0 .5rem; border-radius: .25rem; background: var(--badge-fond); color: var(--badge-texte); font-size: .75rem; line-height: 1.25rem; font-weight: 700; text-transform: uppercase; }
+.carte__texte { margin: 0 0 1rem; color: var(--texte-discret); }
+.carte__detail { margin: 0; font-size: .875rem; line-height: 1.5rem; color: var(--texte-discret); word-break: break-word; }
+.carte__detail span { font-weight: 700; color: var(--texte); }
+.carte__detail span::after { content: " :"; }
+@media print { .carte { break-inside: avoid; } }
+    </style>
+</head>
+<body>
+    <header class="entete">
+        <div class="conteneur">
+            <h1>{{titre}}</h1>
+            <p class="sous-titre">{{nombre}} {{libelle_nombre}} - {{date}}</p>
+        </div>
+    </header>
+    <main class="conteneur" id="contenu">
+        <ul class="grille">
+<!-- LIGNE -->
+            <li>
+                <article class="carte">
+<!-- CHAMP nom -->
+                    <h2 class="carte__titre">{{nom}}</h2>
+<!-- /CHAMP -->
+<!-- CHAMP version -->
+                    <p class="carte__badge"><span class="badge">{{entete_version}} {{version}}</span></p>
+<!-- /CHAMP -->
+<!-- CHAMP description -->
+                    <p class="carte__texte">{{description}}</p>
+<!-- /CHAMP -->
+<!-- CHAMP auteur -->
+                    <p class="carte__detail"><span>{{entete_auteur}}</span> {{auteur}}</p>
+<!-- /CHAMP -->
+<!-- CHAMP dossier -->
+                    <p class="carte__detail"><span>{{entete_dossier}}</span> {{dossier}}</p>
+<!-- /CHAMP -->
+<!-- CHAMP homepage -->
+                    <p class="carte__detail"><span>{{entete_homepage}}</span> {{homepage}}</p>
+<!-- /CHAMP -->
+                </article>
+            </li>
+<!-- /LIGNE -->
+        </ul>
+    </main>
+</body>
+</html>

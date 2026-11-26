@@ -4,19 +4,21 @@ qgisMinimumVersion=3.28
 qgisMaximumVersion=3.99
 description=Exports the list of installed QGIS plugins as HTML or CSV, with descriptions in the selected language.
 description[fr]=Exporte la liste des extensions QGIS installées en HTML ou CSV, avec les descriptions dans la langue choisie.
-about=Standalone QGIS plugin to export the installed plugins list as HTML or CSV. It uses plugin-provided localized descriptions when available and otherwise attempts automatic translation. The export dialog is available from the Extensions menu and the toolbar.
-about[fr]=Extension QGIS autonome permettant d’exporter la liste des extensions installées en HTML ou CSV. Elle utilise les descriptions traduites fournies par les extensions et, à défaut, tente une traduction automatique. La fenêtre d’export est accessible depuis le menu Extensions et la barre d’outils.
-version=1.2.6
+about=Standalone QGIS plugin to export the installed plugins list as HTML or CSV. It uses plugin-provided localized descriptions when available and otherwise attempts automatic translation. HTML pages are generated from editable template files (four are provided, you can import your own or edit them in the built-in editor), and you choose which fields are exported. The export dialog is available from the Extensions menu and the toolbar.
+about[fr]=Extension QGIS autonome permettant d’exporter la liste des extensions installées en HTML ou CSV. Elle utilise les descriptions traduites fournies par les extensions et, à défaut, tente une traduction automatique. Les pages HTML sont générées à partir de modèles modifiables (quatre sont fournis, vous pouvez importer le vôtre ou les modifier dans l'éditeur intégré), et vous choisissez les champs exportés. La fenêtre d’export est accessible depuis le menu Extensions et la barre d’outils.
+version=1.4.0
 author=shenri52
 email=shenri.hmn@gmail.com
 tracker=https://github.com/shenri52/qgis-plugin-liste/issues
 repository=https://github.com/shenri52/qgis-plugin-liste
 homepage=https://github.com/shenri52/qgis-plugin-liste
-tags=plugins, export, html, csv, translation
+tags=plugins, export, html, csv, translation, template
 icon=icon.png
 experimental=False
 deprecated=False
-changelog=1.2.6 – Resolve Bandit static analysis findings and harden file/directory handling.
+changelog=1.4.0 – Choice of exported fields (HTML and CSV adapt: no column or label for unselected fields); built-in template editor (create, edit, save, delete your own templates, stored in your QGIS profile); import a template; new template 'Type Design System de l'Etat' (neutral palette); advanced tab removed (other language code and language check moved to the Export tab).
+    1.3.0 – Tabbed dialog; HTML export now uses editable template files (4 bundled templates, custom file, browser preview, additional CSS); CSV column selection; dialog texts in French or English following the system language; safer exports (escaped values, http/https links only, CSV formula neutralisation).
+    1.2.6 – Resolve Bandit static analysis findings and harden file/directory handling.
     1.2.5 – Fix security scan warnings (Bandit) and improve Qt6 compatibility.
     1.2.4 – Visible resize handles and dialog expansion when advanced options are opened, allowing the text areas to be resized.
     1.2.3 – CSS and HTML template text areas can be resized independently by dragging the splitters.

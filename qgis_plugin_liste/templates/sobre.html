@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<!--
+  Modèle Liste Plugin / Liste Plugin template.
+  FR : les balises s'écrivent entre doubles accolades (titre, nombre, libelle_nombre, date, lang, entete_nom,
+       entete_description, entete_version, entete_auteur, entete_dossier, entete_homepage).
+       Le bloc situé entre les deux marqueurs LIGNE est répété pour chaque plugin ; il peut
+       utiliser nom, description, version, auteur, dossier, homepage et numero.
+       Un bloc entouré des marqueurs CHAMP suivis du nom d'un champ (nom, description, version,
+       auteur, dossier, homepage) n'est affiché que si ce champ est coché dans l'export.
+  EN : tags are written between double curly braces (same names as above). The block between
+       the two LIGNE markers is repeated for every plugin. A block wrapped in CHAMP markers
+       followed by a field name is only kept when that field is ticked in the export.
+-->
+<html lang="{{lang}}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{titre}}</title>
+    <style>
+body { font-family: system-ui, Arial, sans-serif; margin: 24px; color: #222; background: #fff; }
+h1 { font-size: 1.2rem; margin: 0 0 4px; }
+p.meta { color: #666; margin: 0 0 16px; font-size: .85rem; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #ddd; vertical-align: top; }
+th { background: #f2f2f2; position: sticky; top: 0; }
+td.col-nom { font-weight: 600; }
+tr:nth-child(even) td { background: #fafafa; }
+.col-nom { width: 25%; }
+.col-version { width: 9%; white-space: nowrap; }
+.col-auteur { width: 14%; }
+.col-dossier { width: 14%; }
+.col-homepage { width: 16%; word-break: break-all; }
+    </style>
+</head>
+<body>
+    <h1>{{titre}}</h1>
+    <p class="meta">{{nombre}} {{libelle_nombre}} - {{date}}</p>
+    <table>
+        <thead>
+            <tr>
+<!-- CHAMP nom -->
+            <th class="col-nom">{{entete_nom}}</th>
+<!-- /CHAMP -->
+<!-- CHAMP description -->
+            <th class="col-description">{{entete_description}}</th>
+<!-- /CHAMP -->
+<!-- CHAMP version -->
+            <th class="col-version">{{entete_version}}</th>
+<!-- /CHAMP -->
+<!-- CHAMP auteur -->
+            <th class="col-auteur">{{entete_auteur}}</th>
+<!-- /CHAMP -->
+<!-- CHAMP dossier -->
+            <th class="col-dossier">{{entete_dossier}}</th>
+<!-- /CHAMP -->
+<!-- CHAMP homepage -->
+            <th class="col-homepage">{{entete_homepage}}</th>
+<!-- /CHAMP -->
+            </tr>
+        </thead>
+        <tbody>
+<!-- LIGNE -->
+            <tr>
+<!-- CHAMP nom -->
+                <td class="col-nom"><strong>{{nom}}</strong></td>
+<!-- /CHAMP -->
+<!-- CHAMP description -->
+                <td class="col-description desc-cell">{{description}}</td>
+<!-- /CHAMP -->
+<!-- CHAMP version -->
+                <td class="col-version">{{version}}</td>
+<!-- /CHAMP -->
+<!-- CHAMP auteur -->
+                <td class="col-auteur">{{auteur}}</td>
+<!-- /CHAMP -->
+<!-- CHAMP dossier -->
+                <td class="col-dossier">{{dossier}}</td>
+<!-- /CHAMP -->
+<!-- CHAMP homepage -->
+                <td class="col-homepage">{{homepage}}</td>
+<!-- /CHAMP -->
+            </tr>
+<!-- /LIGNE -->
+        </tbody>
+    </table>
+</body>
+</html>
