@@ -415,6 +415,11 @@ def test_every_ui_string_has_an_english_version(filename):
     assert not missing, missing
 
 
+def test_plugin_menu_label_is_translatable():
+    assert i18n.tr("&Liste Plugin", True) == "&Liste Plugin"
+    assert i18n.tr("&Liste Plugin", False) == "&Plugin List"
+
+
 def test_language_names_and_model_names_are_translatable():
     for _code, label in core.LANGUES:
         assert i18n.tr(label, True) == label
