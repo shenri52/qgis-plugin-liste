@@ -22,7 +22,7 @@ class ListePluginPlugin:
         self.action.setObjectName("ListePluginAction")
         self.action.setToolTip(tr("Exporter la liste des plugins installés en HTML ou CSV"))
         self.action.triggered.connect(self.run)
-        self.iface.addPluginToMenu("&Liste Plugin", self.action)
+        self.iface.addPluginToMenu(tr("&Liste Plugin"), self.action)
         self.iface.addToolBarIcon(self.action)
 
     def run(self):
@@ -33,7 +33,7 @@ class ListePluginPlugin:
 
     def unload(self):
         if self.action is not None:
-            self.iface.removePluginMenu("&Liste Plugin", self.action)
+            self.iface.removePluginMenu(tr("&Liste Plugin"), self.action)
             self.iface.removeToolBarIcon(self.action)
             self.action = None
         cleanup_previews()
