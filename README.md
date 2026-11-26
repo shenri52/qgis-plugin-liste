@@ -25,6 +25,7 @@ La fenêtre d’export s’affiche dans une présentation compacte. Les options 
 
 ### Historique des versions
 
+- **1.4.1** – Détection de la langue configurée dans QGIS (français ou anglais) et traduction de l’entrée du menu Extensions.
 - **1.4.0** – Choix des champs exportés (le HTML et le CSV s'adaptent : aucune colonne ni étiquette pour les champs non sélectionnés) ; éditeur de modèles intégré (créer, modifier, enregistrer, supprimer vos propres modèles, stockés dans votre profil QGIS) ; importation d'un modèle ; nouveau modèle « Type Design System de l'État » (palette neutre) ; suppression de l'onglet Avancé (le code de langue supplémentaire et la vérification de la langue ont été déplacés vers l'onglet Exporter).
 - **1.3.0** – Boîte de dialogue à onglets ; l'export HTML utilise désormais des fichiers de modèles modifiables (4 modèles inclus, fichier personnalisé, aperçu dans le navigateur, CSS supplémentaire) ; sélection des colonnes CSV ; textes de la boîte de dialogue en français ou en anglais selon la langue du système ; exports plus sécurisés (valeurs échappées, liens http/https uniquement, neutralisation des formules CSV).
 - **1.2.6** – Correction des alertes d’analyse de sécurité (Bandit) et sécurisation de la gestion des fichiers et dossiers.
@@ -59,6 +60,7 @@ The export dialog opens in a compact layout. Advanced options let users customiz
 3. Select the downloaded archive.
 
 ### Version history
+- **1.4.1** – Detect the language configured in QGIS (French or English) and translate the Plugins menu entry.
 - **1.4.0** – Choice of exported fields (HTML and CSV adapt: no column or label for unselected fields); built-in template editor (create, edit, save, delete your own templates, stored in your QGIS profile); import a template; new template 'Type Design System de l'Etat' (neutral palette); advanced tab removed (other language code and language check moved to the Export tab).
 - **1.3.0** – Tabbed dialog; HTML export now uses editable template files (4 bundled templates, custom file, browser preview, additional CSS); CSV column selection; dialog texts in French or English following the system language; safer exports (escaped values, http/https links only, CSV formula neutralisation).
 - **1.2.6** – Resolve Bandit static analysis findings and harden file/directory handling.
