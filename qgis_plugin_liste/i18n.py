@@ -4,6 +4,7 @@
 EN = {
     # fenêtre
     "Liste des plugins installés": "Installed plugins list",
+    "&Liste Plugin": "&Plugin List",
     "Exporte la liste des extensions QGIS installées en HTML ou CSV. Les descriptions sont "
     "utilisées dans la langue choisie lorsqu’elles existent, sinon elles sont traduites "
     "automatiquement.":
@@ -127,11 +128,31 @@ EN = {
 
 
 def is_french():
+    """Détecte d'abord la langue configurée dans QGIS, puis celle du système."""
     try:
+        from qgis.core import QgsApplication
         from qgis.PyQt.QtCore import QLocale
-        return QLocale.system().name().lower().startswith("fr")
+
+        candidates = []
+        try:
+            candidates.append(QgsApplication.locale())
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            candidates.append(QLocale().name())
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            candidates.append(QLocale.system().name())
+        except Exception:  # noqa: BLE001
+            pass
+
+        for candidate in candidates:
+            if candidate:
+                return str(candidate).replace("-", "_").lower().startswith("fr")
     except Exception:  # noqa: BLE001
-        return True
+        pass
+    return True
 
 
 def tr(text, french=None):
